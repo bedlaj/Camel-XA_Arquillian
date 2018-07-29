@@ -73,11 +73,12 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .routeId("input")
                 .routePolicy(topLevelRoutePolicy())
                 .transacted(REQUIRED)
-                .to("direct:requiresNewAndRollback")
-                .to("direct:requiresNewWithoutRollback")
-                //.choice().when(HAS_EXCEPTION).rollback().end()
+                .to("direct:requiresNewAndRollback") // should be rolled back
+                .to("direct:requiresNewWithoutRollback")//should be commited for every redelivery
                 .to("jms:queue:TestOut")
-                .to("log:done");
+                .to("log:done")
+                //.choice().when(HAS_EXCEPTION).rollback().end()
+        ;
 
         from("direct:requiresNewAndRollback")
                 .transacted(REQUIRES_NEW)
@@ -98,7 +99,8 @@ public class MainRouteBuilder extends SpringRouteBuilder {
             @Override
             public void onExchangeDone(Route route, Exchange exchange) {
                 if (exchange.getProperty(Exchange.EXCEPTION_CAUGHT) != null){
-                    exchange.setException(exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Throwable.class));
+                    exchange.setProperty(Exchange.ROLLBACK_ONLY, true);
+                    log.error("Rollback of JTA transaction", exchange.getProperty(Exchange.EXCEPTION_CAUGHT));
                 }
                 super.onExchangeDone(route, exchange);
             }

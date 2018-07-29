@@ -1,6 +1,7 @@
 package eu.janbednar.module.camelXA.routebuilder;
 
 import eu.janbednar.module.camelXA.processor.InsertRecordProcessor;
+import eu.janbednar.module.camelXA.processor.SendProcessor;
 import eu.janbednar.module.camelXA.processor.ThrowProcessor;
 import eu.janbednar.module.camelXA.transaction.CdiTransactionManager;
 import org.apache.camel.Exchange;
@@ -41,6 +42,9 @@ public class MainRouteBuilder extends SpringRouteBuilder {
     @Resource(mappedName = "java:/JmsXA")
     private ConnectionFactory connectionFactory;
 
+    @Inject
+    private SendProcessor sendProcessor;
+
     static Logger log = LoggerFactory.getLogger(MainRouteBuilder.class);
 
     private static Predicate HAS_EXCEPTION = e -> {
@@ -76,6 +80,7 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .to("direct:requiresNewAndRollback") // should be rolled back
                 .to("direct:requiresNewWithoutRollback")//should be commited for every redelivery
                 .to("jms:queue:TestOut") //Should not be commited to JMS queue
+                .process(sendProcessor) //This sends JMS message to TestOut queue using ProducerTemplate. Should be rolled back from queue
                 .to("direct:all")
                 .to("log:done")
                 //.choice().when(HAS_EXCEPTION).rollback().end()

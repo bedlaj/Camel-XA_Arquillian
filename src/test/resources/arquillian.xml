@@ -4,7 +4,7 @@
 
     <container qualifier="wildfly11" default="true">
         <configuration>
-            <property name="jbossHome">C://Portable/wildfly-11.0.0.Final</property>
+            <property name="jbossHome">wildfly-11.0.0.Final</property>
             <!--<property name="javaVmArguments">-agentlib:jdwp=transport=dt_socket,server=y,address=localhost:8787,suspend=y</property>-->
         </configuration>
     </container>

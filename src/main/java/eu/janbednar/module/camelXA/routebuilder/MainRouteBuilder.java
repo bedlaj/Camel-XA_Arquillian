@@ -50,7 +50,6 @@ public class MainRouteBuilder extends SpringRouteBuilder {
     };
 
     public void configure() throws Exception {
-        //getContext().getShutdownStrategy().setTimeUnit(TimeUnit.MICROSECONDS);
         getContext().addComponent("jms", JmsComponent.jmsComponentTransacted(connectionFactory,transactionManager));
 
         onException(Exception.class)

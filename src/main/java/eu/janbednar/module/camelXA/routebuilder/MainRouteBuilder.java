@@ -75,7 +75,8 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .transacted(REQUIRED)
                 .to("direct:requiresNewAndRollback") // should be rolled back
                 .to("direct:requiresNewWithoutRollback")//should be commited for every redelivery
-                .to("jms:queue:TestOut")
+                .to("jms:queue:TestOut") //Should not be commited to JMS queue
+                .to("direct:all")
                 .to("log:done")
                 //.choice().when(HAS_EXCEPTION).rollback().end()
         ;
@@ -92,9 +93,39 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .transacted(REQUIRES_NEW)
                 .process(insertRecordProcessor)
                 .to("log:shouldBeOk");
+
+        //All this should be rolled back
+        from("direct:all")
+                .transacted(REQUIRES_NEW)
+                .process(insertRecordProcessor)
+                .to("direct:this");
+
+        from("direct:this")
+                .transacted(REQUIRED)
+                .process(insertRecordProcessor)
+                .to("direct:should");
+
+        from("direct:should")
+                .transacted(REQUIRED)
+                .process(insertRecordProcessor)
+                .to("direct:be");
+
+        from("direct:be")
+                .transacted(REQUIRED)
+                .process(insertRecordProcessor)
+                .to("direct:rolled");
+
+        from("direct:rolled")
+                .transacted(REQUIRED)
+                .process(insertRecordProcessor)
+                .to("direct:back");
+
+        from("direct:back")
+                .transacted(REQUIRED)
+                .process(new ThrowProcessor(IllegalStateException.class)).to("log:shouldNotBeThere");
     }
 
-    RoutePolicy topLevelRoutePolicy(){
+    private static RoutePolicy topLevelRoutePolicy(){
         return new RoutePolicySupport() {
             @Override
             public void onExchangeDone(Route route, Exchange exchange) {

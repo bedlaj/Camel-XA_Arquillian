@@ -88,7 +88,10 @@ public class MainRouteBuilderArquillianTest {
     @Test
     public void emptyInContainerTest() throws Exception{
         //Preparation
-        mainRouteBuilder.getContext().addComponent("jms-non-xa", JmsComponent.jmsComponent(connectionFactory));
+        if (mainRouteBuilder.getContext().hasComponent("jms-non-xa") == null){
+            mainRouteBuilder.getContext().addComponent("jms-non-xa", JmsComponent.jmsComponent(connectionFactory));
+        }
+
         clearQueue("seda:dlq");
         clearQueue(jmsRouteNonXA);
         clearQueue(dlqRoutenonXA);

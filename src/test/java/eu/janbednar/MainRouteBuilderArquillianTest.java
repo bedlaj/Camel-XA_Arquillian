@@ -41,7 +41,7 @@ import java.util.UUID;
  * @author <a href="mailto:mjobanek@redhat.com">Matous Jobanek</a>
  */
 @RunWith(Arquillian.class)
-public class EmptyDeploymentTest {
+public class MainRouteBuilderArquillianTest {
 
     private static String webxml = "<web-app></web-app>";
     private static String jmsRouteNonXA = "jms-non-xa:queue:Test?exchangePattern=InOnly";
@@ -88,6 +88,7 @@ public class EmptyDeploymentTest {
     @Test
     public void emptyInContainerTest() throws Exception{
         //Preparation
+        mainRouteBuilder.getContext().addComponent("jms-non-xa", JmsComponent.jmsComponent(connectionFactory));
         clearQueue("seda:dlq");
         clearQueue(jmsRouteNonXA);
         clearQueue(dlqRoutenonXA);

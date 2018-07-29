@@ -49,28 +49,4 @@ public abstract class AbstractDao {
     public <T> T find(Class<T> clazz, Object id) {
         return getEntityManager().find(clazz,id);
     }
-
-    /**
-     *
-     * @param query
-     * @param clazz
-     * @param <T>
-     * @return
-     */
-    public <T> TypedQuery<T> createCatchableQuery(String query,Class<T> clazz){
-        TypedQuery<T> q = getEntityManager().createQuery(query, clazz);
-        q.setHint("org.hibernate.cacheable", true);
-        return q;
-    }
-
-    /**
-     *
-     * @param query
-     * @return
-     */
-    public Query createCatchableQuery(String query){
-        Query q = getEntityManager().createQuery(query);
-        q.setHint("org.hibernate.cacheable", true);
-        return q;
-    }
 }

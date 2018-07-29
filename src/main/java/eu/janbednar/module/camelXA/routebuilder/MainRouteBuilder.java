@@ -1,7 +1,6 @@
 package eu.janbednar.module.camelXA.routebuilder;
 
 import eu.janbednar.module.camelXA.processor.InsertRecordProcessor;
-import eu.janbednar.module.camelXA.processor.KillProcessor;
 import eu.janbednar.module.camelXA.processor.ThrowProcessor;
 import eu.janbednar.module.camelXA.transaction.CdiTransactionManager;
 import org.apache.camel.Exchange;
@@ -20,15 +19,16 @@ import javax.ejb.Startup;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.jms.ConnectionFactory;
-import java.util.concurrent.TimeUnit;
 
 @Startup
 @ApplicationScoped
 public class MainRouteBuilder extends SpringRouteBuilder {
 
+    // Custom Spring propagations
     private static String REQUIRED = "PROPAGATION_REQUIRED_CUSTOM";
     private static String REQUIRES_NEW = "PROPAGATION_REQUIRES_NEW_CUSTOM";
 
+    // Legacy Spring propagations from camel-cdi dependency
     //private static String REQUIRED = "PROPAGATION_REQUIRED";
     //private static String REQUIRES_NEW = "PROPAGATION_REQUIRES_NEW";
 
@@ -52,8 +52,6 @@ public class MainRouteBuilder extends SpringRouteBuilder {
     public void configure() throws Exception {
         //getContext().getShutdownStrategy().setTimeUnit(TimeUnit.MICROSECONDS);
         getContext().addComponent("jms", JmsComponent.jmsComponentTransacted(connectionFactory,transactionManager));
-        JmsComponent jmsComponentNonXa = JmsComponent.jmsComponent(connectionFactory);
-        getContext().addComponent("jms-non-xa", jmsComponentNonXa);
 
         onException(Exception.class)
                 .log(LoggingLevel.INFO, getClass().getCanonicalName(), "About to rollback")

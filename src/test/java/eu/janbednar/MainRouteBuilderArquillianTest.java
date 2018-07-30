@@ -47,7 +47,6 @@ public class MainRouteBuilderArquillianTest {
     private static String jmsRouteNonXA = "jms-non-xa:queue:Test?exchangePattern=InOnly";
     private static String jmsOutNonXA = "jms-non-xa:queue:TestOut?exchangePattern=InOnly";
     private static String dlqRoutenonXA = "jms-non-xa:queue:DLQ?exchangePattern=InOnly";
-    private static String jbossHome = "C://Portable/wildfly-11.0.0.Final";
 
     @Resource(mappedName = "java:/JmsXA")
     private ConnectionFactory connectionFactory;

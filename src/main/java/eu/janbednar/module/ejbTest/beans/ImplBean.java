@@ -22,7 +22,7 @@ public class ImplBean extends AbstractBean implements Operation{
     Logger logger;
 
     public ImplBean() {
-        new Throwable().printStackTrace();
+        //new Throwable().printStackTrace();
     }
 
     @Override

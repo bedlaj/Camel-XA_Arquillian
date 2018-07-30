@@ -1,38 +1,22 @@
 package eu.janbednar;
 
-import eu.janbednar.module.camelXA.processor.NoOpProcessor;
-import eu.janbednar.module.camelXA.routebuilder.MainRouteBuilder;
-import eu.janbednar.module.camelXA.transaction.CdiTransactionManager;
-import eu.janbednar.module.domain.dao.AbstractDao;
-import eu.janbednar.module.domain.dao.TestDao;
-import eu.janbednar.module.domain.entity.TestEntity;
 import eu.janbednar.module.ejbTest.beans.ImplBean;
-import org.apache.camel.ConsumerTemplate;
-import org.apache.camel.Exchange;
-import org.apache.camel.ProducerTemplate;
-import org.apache.camel.component.jms.JmsComponent;
-import org.apache.camel.impl.DefaultCamelContext;
-import org.apache.camel.impl.DefaultExchange;
+import eu.janbednar.module.ejbTest.beans.Operation;
+import eu.janbednar.module.ejbTest.beans.Processor;
+import org.apache.camel.CamelContext;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.ArchivePaths;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import javax.annotation.Resource;
 import javax.inject.Inject;
-import javax.jms.ConnectionFactory;
 import java.io.File;
-import java.util.List;
-import java.util.UUID;
 
 /**
  * @author <a href="mailto:mjobanek@redhat.com">Matous Jobanek</a>
@@ -48,8 +32,9 @@ public class EjbTest {
             "       bean-discovery-mode=\"all\">\n" +
             "</beans>"*/"";
 
+
     @Inject
-    ImplBean implBean;
+    CamelContext camelContext;
 
     @Deployment
     public static Archive deployejbTest() throws Exception{
@@ -68,6 +53,17 @@ public class EjbTest {
 
     @Test
     public void test() throws Exception{
-       implBean.process(new DefaultExchange(new DefaultCamelContext()));
+
+        //Assert.assertEquals(1, CDI.current().getBeanManager().getBeans("implBean").size());
+        System.out.println(camelContext.getRegistry().lookupByName("implBean"));
+        camelContext.getRegistry().lookupByName("implBean");
+
+        ((Operation)camelContext.getRegistry().lookupByName("implBean")).operation("hello");
+//        ((Processor)camelContext.getRegistry().lookupByName("implBean")).process(new Object());
+        ((Processor)camelContext.getRegistry().lookupByName("someDummyCdiAndStatelessBean")).process("hello there");
+
+       //implBean.process(new DefaultExchange(new DefaultCamelContext()));
+
+        camelContext.createProducerTemplate().sendBody("bean:implBean", "Hi");
     }
 }

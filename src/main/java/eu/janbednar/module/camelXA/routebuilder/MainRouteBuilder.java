@@ -2,7 +2,9 @@ package eu.janbednar.module.camelXA.routebuilder;
 
 import eu.janbednar.module.camelXA.processor.InsertRecordProcessor;
 import eu.janbednar.module.camelXA.processor.SendProcessor;
+import eu.janbednar.module.camelXA.processor.SetHeaderOnIterationRouter;
 import eu.janbednar.module.camelXA.processor.ThrowProcessor;
+import eu.janbednar.module.camelXA.transaction.CdiRequiredPolicy;
 import eu.janbednar.module.camelXA.transaction.CdiTransactionManager;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
@@ -45,6 +47,9 @@ public class MainRouteBuilder extends SpringRouteBuilder {
     @Inject
     private SendProcessor sendProcessor;
 
+    @Inject
+    private CdiRequiredPolicy cdiRequiredPolicy;
+
     static Logger log = LoggerFactory.getLogger(MainRouteBuilder.class);
 
     private static Predicate HAS_EXCEPTION = e -> {
@@ -58,8 +63,8 @@ public class MainRouteBuilder extends SpringRouteBuilder {
 
         onException(Exception.class)
                 .log(LoggingLevel.INFO, getClass().getCanonicalName(), "About to rollback")
+               // .removeProperty(Exchange.TRY_ROUTE_BLOCK)
                 .markRollbackOnlyLast();// Only last transaction will be rolled back
-
 
         from("direct:hello")
                 .transacted(REQUIRED)
@@ -77,14 +82,28 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .routeId("input")
                 .routePolicy(topLevelRoutePolicy())
                 .transacted(REQUIRED)
-                .to("direct:requiresNewAndRollback") // should be rolled back
+                .to("direct:router")
                 .to("direct:requiresNewWithoutRollback")//should be commited for every redelivery
-                .to("jms:queue:TestOut") //Should not be commited to JMS queue
+                //.to("direct:requiresNewAndRollback") // should be rolled back
+
                 .process(sendProcessor) //This sends JMS message to TestOut queue using ProducerTemplate. Should be rolled back from queue
                 .to("direct:all")
+
                 .to("log:done")
-                //.choice().when(HAS_EXCEPTION).rollback().end()
         ;
+
+        from("direct:router")
+                .transacted(REQUIRES_NEW)
+                .process(e-> System.out.println("inRouter"))
+                //.setProperty(Exchange.TRY_ROUTE_BLOCK, constant(true))
+                .process(new SetHeaderOnIterationRouter(3));
+                //.dynamicRouter().method(new SetHeaderOnIterationRouter(3), "route");
+
+        from("direct:inRouter")
+                //.transacted(REQUIRED)
+                .process(insertRecordProcessor)
+                .choice().when(header("throw").isEqualTo(true)).process(new ThrowProcessor(RuntimeException.class))
+                .otherwise().end();
 
         from("direct:requiresNewAndRollback")
                 .transacted(REQUIRES_NEW)
@@ -106,37 +125,46 @@ public class MainRouteBuilder extends SpringRouteBuilder {
                 .to("direct:this");
 
         from("direct:this")
-                .transacted(REQUIRED)
+                //.transacted(REQUIRED)
                 .process(insertRecordProcessor)
                 .to("direct:should");
 
         from("direct:should")
-                .transacted(REQUIRED)
+                //.transacted(REQUIRED)
                 .process(insertRecordProcessor)
                 .to("direct:be");
 
         from("direct:be")
-                .transacted(REQUIRED)
+                //.transacted(REQUIRED)
                 .process(insertRecordProcessor)
                 .to("direct:rolled");
 
         from("direct:rolled")
-                .transacted(REQUIRED)
+                //.transacted(REQUIRED)
                 .process(insertRecordProcessor)
                 .to("direct:back");
 
         from("direct:back")
-                .transacted(REQUIRED)
+                //.transacted(REQUIRED)
+                .to("direct:butThisShouldNot")
                 .process(new ThrowProcessor(IllegalStateException.class)).to("log:shouldNotBeThere");
+
+
+        from("direct:butThisShouldNot")
+                .transacted(REQUIRES_NEW)
+                .process(insertRecordProcessor)
+                .to("log:butThisShouldNot");
     }
 
     private static RoutePolicy topLevelRoutePolicy(){
         return new RoutePolicySupport() {
             @Override
             public void onExchangeDone(Route route, Exchange exchange) {
-                if (exchange.getProperty(Exchange.EXCEPTION_CAUGHT) != null){
-                    exchange.setProperty(Exchange.ROLLBACK_ONLY, true);
+                if (exchange.getProperty(Exchange.EXCEPTION_CAUGHT) != null && exchange.isTransacted()){
+                    //exchange.setProperty(Exchange.ROLLBACK_ONLY, true);
+                    //exchange.setException(new RollbackExchangeException(exchange, exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Throwable.class)));
                     log.error("Rollback of JTA transaction", exchange.getProperty(Exchange.EXCEPTION_CAUGHT));
+                    exchange.setException(exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Throwable.class));
                 }
                 super.onExchangeDone(route, exchange);
             }

@@ -2,6 +2,7 @@ package eu.janbednar;
 
 import eu.janbednar.module.camelXA.processor.NoOpProcessor;
 import eu.janbednar.module.camelXA.routebuilder.MainRouteBuilder;
+import eu.janbednar.module.camelXA.routebuilder.MainRouteBuilderRaceCondition;
 import eu.janbednar.module.camelXA.transaction.CdiTransactionManager;
 import eu.janbednar.module.domain.dao.AbstractDao;
 import eu.janbednar.module.domain.dao.TestDao;
@@ -19,8 +20,8 @@ import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -28,11 +29,13 @@ import javax.annotation.Resource;
 import javax.inject.Inject;
 import javax.jms.ConnectionFactory;
 import java.io.File;
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * @author <a href="mailto:mjobanek@redhat.com">Matous Jobanek</a>
+ */
 @RunWith(Arquillian.class)
-public class MainRouteBuilderArquillianTest {
+public class MainRouteBuilderRaceConditionArquillianTest {
 
     private static String webxml = "<web-app></web-app>";
     private static String jmsRouteNonXA = "jms-non-xa:queue:Test?exchangePattern=InOnly";
@@ -64,7 +67,7 @@ public class MainRouteBuilderArquillianTest {
                 .importRuntimeDependencies().resolve().withTransitivity().asFile();
 
         return ShrinkWrap.create(WebArchive.class, "camelXA.war")
-                .addPackage(MainRouteBuilder.class.getPackage()) //routebuilder package
+                .addPackage(MainRouteBuilderRaceCondition.class.getPackage()) //routebuilder package
                 .addPackage(CdiTransactionManager.class.getPackage()) //transaction package
                 .addPackage(AbstractDao.class.getPackage()) //dao package
                 .addPackage(TestEntity.class.getPackage()) //entity package
@@ -76,6 +79,7 @@ public class MainRouteBuilderArquillianTest {
     }
 
     @Test
+    @Ignore
     public void emptyInContainerTest() throws Exception{
         //Preparation
         if (mainRouteBuilder.getContext().hasComponent("jms-non-xa") == null){
@@ -93,22 +97,8 @@ public class MainRouteBuilderArquillianTest {
         String correlationId = UUID.randomUUID().toString();
         System.out.println("correlationId is "+correlationId);
         //producerTemplate.sendBody("direct:hello", "hi");
-        producerTemplate.sendBodyAndHeader(jmsRouteNonXA, correlationId, "JMSCorrelationID", correlationId);
+        producerTemplate.sendBodyAndHeader(jmsRouteNonXA, 1L, "JMSCorrelationID", correlationId);
 
-        Exchange dlq = consumerTemplate.receive("seda:dlq", 60000);
-
-        System.out.println("received: "+dlq.getIn().getBody(String.class));
-        Assert.assertEquals(correlationId, dlq.getIn().getBody(String.class));
-
-        List<TestEntity> dbResultAll = testDao.getByClass(TestEntity.class);
-        System.out.println("dbResultAll: "+dbResultAll);
-
-        List<TestEntity> dbResult = testDao.getByValue(correlationId);
-        System.out.println("dbResultByValue: "+dbResult);
-        Assert.assertEquals(10, dbResult.size());
-
-        //Validate commit to TestOut was not parformed
-        Assert.assertNull(consumerTemplate.receiveNoWait(jmsOutNonXA));
     }
 
     private void clearQueue(String queue){
